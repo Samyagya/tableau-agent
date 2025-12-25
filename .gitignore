@@ -1,0 +1,24 @@
+# Python basics
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment (Huge folder, never upload this)
+venv/
+env/
+.venv/
+
+# Environment Variables (SECRETS - Never upload these!)
+.env
+.env.local
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# VS Code settings (Optional, usually personal preference)
+.vscode/
+
+# Data Files (Optional: If your CSVs contain sensitive info, ignore them)
+# data/
+# *.csv
