@@ -48,3 +48,31 @@ class InventoryStore:
         self.sheet.update_cell(src_row[0], 3, src_row[1]["Qty"] - qty)
         self.sheet.update_cell(dest_row[0], 3, dest_row[1]["Qty"] + qty)
 
+
+
+
+#Restock: Add stock from a supplier (Purchase Order)
+    def restock(self, sku, warehouse, amount):
+        rows = self.sheet.get_all_records()
+        
+        target_row_idx = None
+        current_qty = 0
+        
+        # Find row for this (SKU + Warehouse)
+        for idx, r in enumerate(rows, start=2):
+            if r["SKU"] == sku and r["Warehouse"] == warehouse:
+                target_row_idx = idx
+                current_qty = r["Qty"]
+                break
+        
+        if target_row_idx:
+            new_total = current_qty + amount
+            
+            # Update Qty with the new total
+            self.sheet.update_cell(target_row_idx, 3, new_total)
+            print(f"SUCCESS: Restocked {amount} units of {sku} in {warehouse}. New Total: {new_total}")
+            return new_total
+        else:
+            print(f"ERROR: Could not find {sku} in {warehouse}")
+            return None
+
