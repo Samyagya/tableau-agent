@@ -59,12 +59,12 @@ def smart_job():
         else:
             print("      ⚠️ ERROR: Calculated restock amount is 0. Check logic.")
 
-if __name__ == "__main__":
-    print("🤖 SYSTEM ONLINE: Universal Supply Chain Agent is running...")
-    try:
-        while True:
-            smart_job()
-            # Wait 10 seconds before scanning the whole world again
-            time.sleep(10)
-    except KeyboardInterrupt:
-        print("\n🛑 SYSTEM SHUTDOWN: Agent stopped by user.")
+# if __name__ == "__main__":
+#     print("🤖 SYSTEM ONLINE: Universal Supply Chain Agent is running...")
+#     try:
+#         while True:
+#             smart_job()
+#             # Wait 10 seconds before scanning the whole world again
+#             time.sleep(10)
+#     except KeyboardInterrupt:
+#         print("\n🛑 SYSTEM SHUTDOWN: Agent stopped by user.")
