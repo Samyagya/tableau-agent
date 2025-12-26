@@ -48,7 +48,9 @@ class InventoryStore:
         self.sheet.update_cell(src_row[0], 3, src_row[1]["Qty"] - qty)
         self.sheet.update_cell(dest_row[0], 3, dest_row[1]["Qty"] + qty)
 
-
+# Fetch the entire database
+    def get_all_inventory(self):
+        return self.sheet.get_all_records()
 
 
 #Restock: Add stock from a supplier (Purchase Order)
