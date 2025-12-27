@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from api.health import router as health_router
-from api.inventory import router as inventory_router
+from backend.api.warehouse import router as inventory_router
 from api.agent import router as agent_router
 
 app = FastAPI(
