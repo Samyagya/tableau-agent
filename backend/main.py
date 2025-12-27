@@ -1,18 +1,13 @@
-from services.inventory import InventoryStore
+from fastapi import FastAPI
+from api.health import router as health_router
+from api.inventory import router as inventory_router
+from api.agent import router as agent_router
 
-store = InventoryStore()
-# rows = store.get_by_sku("Tyre002")
-# print(rows)
-
-print("BEFORE TRANSFER")
-print(store.get_by_sku("Tyre001"))
-
-store.apply_transfer(
-    sku="Tyre001",
-    src="Chennai",      
-    dest="New Delhi",   
-    qty=20
+app = FastAPI(
+    title="Supply Chain Agent Backend",
+    version="1.0"
 )
 
-print("AFTER TRANSFER")
-print(store.get_by_sku("Tyre001"))
+app.include_router(health_router)
+app.include_router(inventory_router)
+app.include_router(agent_router)

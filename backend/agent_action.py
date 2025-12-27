@@ -16,5 +16,5 @@ def run_agent():
     
     print("🤖 AGENT: Ticket closed. Inventory levels healthy.")
 
-if __name__ == "__main__":
-    run_agent()
+# if __name__ == "__main__":
+#     run_agent()
