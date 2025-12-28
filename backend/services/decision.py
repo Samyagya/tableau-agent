@@ -1,4 +1,4 @@
-def reccomendBest(options: list[dict]) -> dict | None:
+def recommend_best(options: list[dict]) -> dict | None:
     if not options:
         return None
 

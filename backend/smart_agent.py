@@ -1,7 +1,7 @@
 from services.inventory import InventoryStore
 from services.analysis import analyze_inventory
 from services.options import generate_options
-from services.decision import reccomendBest
+from services.decision import recommend_best
 from services.notification import send_approval_request 
 from datetime import datetime
 import time
@@ -26,7 +26,7 @@ def smart_job():
         
         # Generate Solutions
         options = generate_options(store, problem)
-        best_decision = reccomendBest(options)
+        best_decision = recommend_best(options)
 
         if best_decision:
             action_type = best_decision['type']
