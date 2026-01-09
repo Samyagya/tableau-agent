@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request,BackgroundTasks
 import json
 from services.inventory import InventoryStore
 from services.analysis import analyze_inventory
@@ -7,6 +7,31 @@ from services.decision import recommend_best
 from services.executions import ExecutionLogger
 from services.approvals import ApprovalStore
 from services.notification import send_approval_request
+from services.notification import send_recommendations_dropdown
+from services.notification import update_slack_message
+from services.inventory import InventoryStore
+from services.approvals import ApprovalStore
+
+def parse_selected(parts: list[str]) -> dict:
+    
+    if parts[0] == "TRANSFER":
+        return {
+            "type": "TRANSFER",
+            "sku": parts[1],
+            "from": parts[2],
+            "to": parts[3],
+            "qty": int(parts[4])
+        }
+
+    if parts[0] == "RESTOCK":
+        return {
+            "type": "RESTOCK",
+            "sku": parts[1],
+            "warehouse": parts[2],
+            "qty": int(parts[3])
+        }
+
+    raise ValueError(f"Unknown selection format: {parts}")
 
 
 
@@ -14,6 +39,7 @@ router = APIRouter(prefix="/agent", tags=["agent"])
 approval_store = ApprovalStore()
 logger = ExecutionLogger()
 store = InventoryStore()
+
 
 
 def get_target_warehouse(decision: dict) -> str:
@@ -30,49 +56,29 @@ def scan_inventory():
     problems = analyze_inventory(items)
 
     results = []
+    recommendations = []
 
     for problem in problems:
         options = generate_options(store, problem)
-        decision = recommend_best(options)  # USE CANONICAL NAME
-
-        approval_id = None
-
-        if decision:
-            target_warehouse = get_target_warehouse(decision)
-
-            approval_payload = {
-                "type": decision["type"],
-                "sku": decision["sku"],
-                "warehouse": target_warehouse,
-                "qty": decision["qty"],
-                "cost": decision["cost"],
-                "from": decision.get("from"),
-                "to": decision.get("to")
-            }
-
-            approval_id = approval_store.create(approval_payload)
-
-            send_approval_request(
-                approval_id=approval_id,
-                action=decision["type"],
-                sku=decision["sku"],
-                warehouse=target_warehouse,
-                qty=decision["qty"],
-                cost=decision["cost"],
-                src=decision.get("from")
-            )
-
+        decision = recommend_best(options)  
         results.append({
             "problem": problem,
             "options": options,
-            "recommendation": decision,
-            "approval_id": approval_id
+            "recommendation": decision
         })
+
+        if decision:
+            recommendations.append(decision)
+
+    if recommendations:
+        send_recommendations_dropdown(recommendations)
 
     return {
         "status": "ok",
-        "results": results
+        "results": results,
+        "recommendation_count": len(recommendations)
     }
+
 
 
 
@@ -186,34 +192,92 @@ def execute_transfer(payload: dict):
     }
 
 @router.post("/slack/actions")
-async def slack_actions(request: Request):
-   #Handles Slack
-    print("SLACK ACTION RECEIVED")
-
+async def slack_actions(
+    request: Request,
+    background_tasks: BackgroundTasks
+):
+   
     form = await request.form()
     payload = json.loads(form["payload"])
 
-    action_value = payload["actions"][0]["value"]
-    action_type, approval_id = action_value.split("::")
-    user = payload["user"]["username"]
+    background_tasks.add_task(handle_slack_action, payload)
+    return {}  
 
-    if action_type == "APPROVE":
-        decision = approval_store.approve(approval_id, user)
 
-        if not decision:
-            return { "text": "Approval already processed or invalid." }
+def handle_slack_action(payload: dict):
+    action = payload["actions"][0]
+    action_id = action["action_id"]
+    message_ts = payload["message"]["ts"]
+    response_url = payload["response_url"]
 
-        return {
-            "text": (
-                "✅ *Approved*\n"
-                f"Action: *{decision['action_type']}*\n"
-                f"SKU: *{decision['sku']}*\n"
-                f"Qty: *{decision['qty']}*"
+    
+    if action_id == "select_recommendation":
+        selected_value = action["selected_option"]["value"]
+
+        store.save_slack_selection(message_ts, selected_value)
+
+        update_slack_message(
+            response_url,
+            "✅ *Selection saved*\nClick **Approve** or **Reject**."
+        )
+        return
+
+    if action_id == "approve_action":
+        selected_value = store.get_slack_selection(message_ts)
+
+        if not selected_value:
+            update_slack_message(
+                response_url,
+                "⚠️ *No selection found.* Please select an option first."
             )
-        }
+            return
 
-    if action_type == "REJECT":
-        approval_store.reject(approval_id, user)
-        return { "text": "❌ *Rejected*" }
+        decision = parse_selected(selected_value.split("|"))
+        approval_id = approval_store.create(decision)
 
-    return { "text": "⚠️ Unknown action" }
+        text = (
+            "✅ *APPROVED*\n\n"
+            f"*Action:* {decision['type']}\n"
+            f"*SKU:* {decision['sku']}\n"
+            f"*Quantity:* {decision['qty']}\n"
+        )
+
+        if decision["type"] == "TRANSFER":
+            text += (
+                f"*From:* {decision['from']}\n"
+                f"*To:* {decision['to']}\n"
+            )
+        else:
+            text += f"*Warehouse:* {decision['warehouse']}\n"
+
+        text += f"\n*Approval ID:* `{approval_id}`"
+
+        update_slack_message(response_url, text)
+        return
+
+    if action_id == "reject_action":
+        selected_value = store.get_slack_selection(message_ts)
+
+        text = "❌ *REJECTED*\n"
+
+        if selected_value:
+            decision = parse_selected(selected_value.split("|"))
+            text += (
+                f"\n*Action:* {decision['type']}"
+                f"\n*SKU:* {decision['sku']}"
+                f"\n*Quantity:* {decision['qty']}"
+            )
+
+            if decision["type"] == "TRANSFER":
+                text += (
+                    f"\n*From:* {decision['from']}"
+                    f"\n*To:* {decision['to']}"
+                )
+            else:
+                text += f"\n*Warehouse:* {decision['warehouse']}"
+
+        update_slack_message(response_url, text)
+        return
+
+
+

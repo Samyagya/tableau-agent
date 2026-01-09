@@ -2,6 +2,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import os
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
@@ -77,3 +78,28 @@ class InventoryStore:
 
         self.sheet.update_cell(src_row[0], 3, src_qty - qty)
         self.sheet.update_cell(dest_row[0], 3, dest_qty + qty)
+
+
+    def get_slack_selection_sheet(self):
+        return self.sheet.spreadsheet.worksheet("slack_selections")
+
+    def save_slack_selection(self, message_ts: str, selected_value: str):
+        sheet = self.get_slack_selection_sheet()
+        sheet.append_row([
+            message_ts,
+            selected_value,
+            datetime.utcnow().isoformat()
+        ])
+
+    def get_slack_selection(self, message_ts: str) -> str | None:
+        sheet = self.get_slack_selection_sheet()
+        rows = sheet.get_all_records()
+
+        target_ts = str(message_ts)
+        
+        for r in reversed(rows):
+           
+            if str(r["message_ts"]) == target_ts:
+                return r["selected_value"]
+
+        return None

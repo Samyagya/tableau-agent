@@ -13,12 +13,12 @@ class ApprovalStore:
 
         self.sheet.append_row([
             approval_id,
-            recommendation["type"],
-            recommendation["sku"],
-            recommendation["warehouse"],
-            recommendation["qty"],
-            recommendation.get("from"),
-            recommendation["cost"],
+            recommendation.get("type"),
+            recommendation.get("sku"),
+            recommendation.get("warehouse", ""),  
+            recommendation.get("qty"),
+            recommendation.get("from", ""),       
+            recommendation.get("cost", 0),        
             "PENDING",
             "",
             "",
